@@ -6,10 +6,10 @@ pin_memory: false
 
 # бакетинг по ширине
 bucket:
-  enabled: false
+  enabled: true
   seed: 42
   drop_last: false
 
 # Сколько батчей показать в inspect_data
-n_batches: 2
+n_batches: 8
 samples_path: data/samples
