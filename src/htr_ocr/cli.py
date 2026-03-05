@@ -20,6 +20,8 @@ from htr_ocr.data.splits import make_group_split
 from htr_ocr.data.transforms import make_image_transform
 from htr_ocr.train.ctc_infer import infer_one, load_checkpoint
 from htr_ocr.train.ctc_trainer import evaluate, make_dataloader, train_crnn_ctc
+from htr_ocr.train.vt_trainer import evaluate as vt_evaluate, make_dataloader as vt_make_dataloader, train_htr_vt_ctc
+from htr_ocr.train.vt_infer import infer_one as vt_infer_one, load_checkpoint as vt_load_checkpoint
 from htr_ocr.utils.io import ensure_dir
 from htr_ocr.utils.mlflow_utils import mlflow_run
 

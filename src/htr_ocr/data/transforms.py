@@ -70,13 +70,14 @@ def _build_train_augment(augment_cfg: Any, *, fill: int = 255) -> Callable[[Imag
         return None
 
     methods: list[Callable[[Image.Image], Image.Image]] = []
+    p_each = float(getattr(augment_cfg, "p_each", 1.0))
 
     shear_cfg = getattr(augment_cfg, "shear", None)
     if shear_cfg is not None and bool(getattr(shear_cfg, "enabled", True)):
         methods.append(
             RandomShear(
                 max_degrees=float(getattr(shear_cfg, "max_degrees", 7.0)),
-                p=1.0,
+                p=p_each,
                 fill=fill,
             )
         )
@@ -86,7 +87,7 @@ def _build_train_augment(augment_cfg: Any, *, fill: int = 255) -> Callable[[Imag
         methods.append(
             RandomRotate(
                 max_degrees=float(getattr(rot_cfg, "max_degrees", 3.0)),
-                p=1.0,
+                p=p_each,
                 fill=fill,
             )
         )
@@ -97,7 +98,7 @@ def _build_train_augment(augment_cfg: Any, *, fill: int = 255) -> Callable[[Imag
             RandomElastic(
                 alpha=float(getattr(el_cfg, "alpha", 40.0)),
                 sigma=float(getattr(el_cfg, "sigma", 6.0)),
-                p=1.0,
+                p=p_each,
                 fill=fill,
             )
         )
@@ -112,7 +113,7 @@ def _build_train_augment(augment_cfg: Any, *, fill: int = 255) -> Callable[[Imag
                 RandomDistort(
                     max_shift_px=int(getattr(d_cfg, "max_shift_px", 6)),
                     num_stripes=int(getattr(d_cfg, "num_stripes", 12)),
-                    p=1.0,
+                    p=p_each,
                     fill=fill,
                 )
             )
@@ -122,7 +123,7 @@ def _build_train_augment(augment_cfg: Any, *, fill: int = 255) -> Callable[[Imag
             geo_methods.append(
                 RandomStretch(
                     max_factor=float(getattr(s_cfg, "max_factor", 0.15)),
-                    p=1.0,
+                    p=p_each,
                 )
             )
 
@@ -131,7 +132,7 @@ def _build_train_augment(augment_cfg: Any, *, fill: int = 255) -> Callable[[Imag
             geo_methods.append(
                 RandomPerspective(
                     distortion_scale=float(getattr(p_cfg, "distortion_scale", 0.2)),
-                    p=1.0,
+                    p=p_each,
                     fill=fill,
                 )
             )

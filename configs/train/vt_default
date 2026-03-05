@@ -1,0 +1,13 @@
+device: cuda
+lr: 3e-4
+weight_decay: 0.5
+
+max_epochs: 100
+patience: 100
+
+runs_dir: runs
+
+sam:
+  enabled: true
+  rho: 0.05
+  adaptive: false

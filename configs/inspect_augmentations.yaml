@@ -10,8 +10,8 @@ command:
   name: inspect_augmentations
 
 inspect_aug:
-  index: 21
-  n: 12
+  index: 37
+  n: 19
   cols: 2
   seed: 123
   out_dir: data/augmentations

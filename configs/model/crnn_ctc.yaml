@@ -1,3 +1,4 @@
+name: crnn_ctc
 rnn_hidden: 256
 rnn_layers: 2
 fc_hidden: 256

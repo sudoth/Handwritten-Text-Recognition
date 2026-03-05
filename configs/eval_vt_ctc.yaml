@@ -1,0 +1,14 @@
+defaults:
+  - _self_
+  - data: iam
+  - loader: eval_ctc
+  - preprocess: default
+  - model: htr_vt_ctc
+  - decode: beam
+  - span_mask: vt
+  - mlflow: default
+
+eval:
+  device: cuda
+  split: test
+  checkpoint_path: runs/htr_vt_ctc/best.pt

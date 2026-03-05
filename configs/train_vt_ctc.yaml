@@ -1,0 +1,11 @@
+defaults:
+  - _self_
+  - data: iam
+  - loader: train_ctc
+  - preprocess: default
+  - model: htr_vt_ctc
+  - train: vt_default
+  - decode: beam
+  - augment: paper
+  - span_mask: vt
+  - mlflow: default

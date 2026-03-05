@@ -1,0 +1,3 @@
+enabled: true
+mask_ratio: 0.4
+span_len: 8
