@@ -16,7 +16,7 @@ from htr_ocr.data.transforms import make_image_transform
 from htr_ocr.models.htr_vt_ctc import HTRVTCTC, SpanMaskCfg
 from htr_ocr.optim.sam import SAM
 from htr_ocr.text.ctc_tokenizer import CTCTokenizer, build_or_load_vocab
-from htr_ocr.text.ctc_decode import ctc_beam_search_decode
+from htr_ocr.text.ctc_decode import ctc_beam_search_batch, ctc_greedy_decode_batch
 from htr_ocr.utils.metrics import cer, wer
 from htr_ocr.utils.io import ensure_dir
 
@@ -117,13 +117,16 @@ def evaluate(model: HTRVTCTC, dl: DataLoader, tokenizer: CTCTokenizer, device: t
 
         loss = ctc_loss(log_probs, targets, input_lengths, target_lengths)
 
-        preds = ctc_beam_search_decode(
-            log_probs=log_probs,
-            tokenizer=tokenizer,
-            method=str(getattr(decode_cfg, "method", "greedy")),
-            beam_width=int(getattr(decode_cfg, "beam_width", 50)),
-            topk=int(getattr(decode_cfg, "topk", 20)),
-        )
+        method = str(getattr(decode_cfg, "method", "greedy"))
+        if method == "beam":
+            preds = ctc_beam_search_batch(
+                log_probs,
+                tokenizer,
+                beam_width=int(getattr(decode_cfg, "beam_width", 50)),
+                topk=int(getattr(decode_cfg, "topk", 20)),
+            )
+        else:
+            preds = ctc_greedy_decode_batch(log_probs, tokenizer)
 
         bs = len(texts)
         total_loss += float(loss.item()) * bs
