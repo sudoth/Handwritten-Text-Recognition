@@ -15,7 +15,7 @@ from htr_ocr.data.samplers import BucketBatchSampler
 from htr_ocr.data.transforms import make_image_transform
 from htr_ocr.models.htr_vt_ctc import HTRVTCTC, SpanMaskCfg
 from htr_ocr.optim.sam import SAM
-from htr_ocr.text.ctc_tokenizer import CTCTokenizer, build_charset
+from htr_ocr.text.ctc_tokenizer import CTCTokenizer, build_or_load_vocab
 from htr_ocr.text.ctc_decode import ctc_beam_search_decode
 from htr_ocr.utils.metrics import cer, wer
 from htr_ocr.utils.io import ensure_dir
@@ -141,7 +141,7 @@ def evaluate(model: HTRVTCTC, dl: DataLoader, tokenizer: CTCTokenizer, device: t
 def train_htr_vt_ctc(cfg) -> TrainResult:
     device = torch.device(cfg.train.device if torch.cuda.is_available() else "cpu")
 
-    tokenizer = build_charset(cfg)
+    tokenizer = build_or_load_vocab(cfg)
 
     span_cfg = SpanMaskCfg(
         enabled=bool(cfg.span_mask.enabled),

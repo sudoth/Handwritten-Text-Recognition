@@ -1,4 +1,6 @@
 import json
+import pandas as pd
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -59,3 +61,18 @@ def build_charset(texts: Iterable[str]) -> list[str]:
     for t in texts:
         chars.update(list(t))
     return sorted(chars)
+
+def build_or_load_vocab(cfg) -> CTCTokenizer:
+    vocab_path = Path(getattr(cfg.train, "vocab_path", Path(cfg.data.processed_dir) / "vocab_ctc.json"))
+    if vocab_path.exists():
+        return CTCTokenizer.load(vocab_path)
+
+    train_csv = Path(cfg.data.processed_dir) / "train.csv"
+    if not train_csv.exists():
+        raise FileNotFoundError("train.csv not found")
+
+    df = pd.read_csv(train_csv)
+    charset = build_charset(df["text"].astype(str).tolist())
+    tokenizer = CTCTokenizer(id2char=charset)
+    tokenizer.save(vocab_path)
+    return tokenizer

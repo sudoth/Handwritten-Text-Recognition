@@ -17,7 +17,7 @@ from htr_ocr.data.samplers import BucketBatchSampler
 from htr_ocr.data.transforms import make_image_transform
 from htr_ocr.models.crnn_ctc import CRNNCTC
 from htr_ocr.text.ctc_decode import ctc_beam_search_batch, ctc_greedy_decode_batch
-from htr_ocr.text.ctc_tokenizer import CTCTokenizer, build_charset
+from htr_ocr.text.ctc_tokenizer import CTCTokenizer, build_or_load_vocab
 from htr_ocr.utils.metrics import AverageMeter, cer, wer
 
 
@@ -114,23 +114,6 @@ def make_dataloader(
         pin_memory=bool(cfg.loader.pin_memory),
         collate_fn=lambda b: collate_line_batch(b, pad_value=float(cfg.preprocess.pad_value) / 255.0),
     )
-
-
-def build_or_load_vocab(cfg) -> CTCTokenizer:
-    vocab_path = Path(getattr(cfg.train, "vocab_path", Path(cfg.data.processed_dir) / "vocab_ctc.json"))
-    if vocab_path.exists():
-        return CTCTokenizer.load(vocab_path)
-
-    train_csv = Path(cfg.data.processed_dir) / "train.csv"
-    if not train_csv.exists():
-        raise FileNotFoundError("train.csv not found")
-
-    df = pd.read_csv(train_csv)
-    charset = build_charset(df["text"].astype(str).tolist())
-    tokenizer = CTCTokenizer(id2char=charset)
-    tokenizer.save(vocab_path)
-    return tokenizer
-
 
 def evaluate(
     model: CRNNCTC,
