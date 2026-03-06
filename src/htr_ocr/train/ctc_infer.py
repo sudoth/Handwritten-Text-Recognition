@@ -11,7 +11,7 @@ from htr_ocr.text.ctc_tokenizer import CTCTokenizer
 
 def load_checkpoint(checkpoint_path: str | Path, device: torch.device) -> tuple[CRNNCTC, CTCTokenizer]:
     ckpt = torch.load(str(checkpoint_path), map_location=device)
-    tok = CTCTokenizer(id2char=list(ckpt["tokenizer"]["id2char"]))
+    tok = CTCTokenizer.from_dict(ckpt["tokenizer"])
     model = CRNNCTC(
         num_classes=tok.vocab_size,
         in_ch=1,

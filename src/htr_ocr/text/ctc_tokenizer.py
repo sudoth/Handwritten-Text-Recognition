@@ -48,12 +48,16 @@ class CTCTokenizer:
         path.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
 
     @staticmethod
-    def load(path: str | Path) -> "CTCTokenizer":
-        obj = json.loads(Path(path).read_text(encoding="utf-8"))
+    def from_dict(obj: dict) -> "CTCTokenizer":
         id2char = obj["id2char"]
         if not isinstance(id2char, list):
             raise ValueError("id2char should be a list")
         return CTCTokenizer(id2char=[str(x) for x in id2char])
+
+    @staticmethod
+    def load(path: str | Path) -> "CTCTokenizer":
+        obj = json.loads(Path(path).read_text(encoding="utf-8"))
+        return CTCTokenizer.from_dict(obj)
 
 
 def build_charset(texts: Iterable[str]) -> list[str]:
