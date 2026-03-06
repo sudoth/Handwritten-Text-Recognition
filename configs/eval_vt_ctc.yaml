@@ -3,7 +3,7 @@ defaults:
   - data: iam
   - loader: eval_ctc
   - preprocess: default
-  - model: htr_vt_ctc
+  - model: vt_ctc
   - decode: beam
   - span_mask: vt
   - mlflow: local

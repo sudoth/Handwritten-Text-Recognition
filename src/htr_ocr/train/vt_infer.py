@@ -5,7 +5,7 @@ import torch
 from PIL import Image
 
 from htr_ocr.data.transforms import make_image_transform
-from htr_ocr.models.htr_vt_ctc import HTRVTCTC, SpanMaskCfg
+from htr.src.htr_ocr.models.vt_ctc import HTRVTCTC, SpanMaskCfg
 from htr_ocr.text.ctc_tokenizer import CTCTokenizer
 from htr_ocr.text.ctc_decode import ctc_beam_search_batch, ctc_greedy_decode_batch
 
