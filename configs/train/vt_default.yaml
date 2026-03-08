@@ -7,7 +7,7 @@ optimizer:
   betas: [0.9, 0.999]
   eps: 1e-8
 
-max_epochs: 100
+max_epochs: 65
 patience: 100
 
 runs_dir: runs

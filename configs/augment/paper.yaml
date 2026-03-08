@@ -1,6 +1,6 @@
-enabled: true
-p: 1
-p_each: 0.5
+enabled: false
+p: 0.5
+p_each: 1
 one_of: false
 
 # Афинные 

@@ -5,7 +5,7 @@ defaults:
   - preprocess: default
   - model: vt_ctc
   - train: vt_default
-  - decode: beam
+  - decode: greedy
   - augment: paper
   - span_mask: vt
   - mlflow: local
