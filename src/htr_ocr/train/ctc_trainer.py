@@ -1,5 +1,4 @@
 import math
-import random
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -19,6 +18,7 @@ from htr_ocr.models.crnn_ctc import CRNNCTC
 from htr_ocr.text.ctc_decode import ctc_beam_search_batch, ctc_greedy_decode_batch
 from htr_ocr.text.ctc_tokenizer import CTCTokenizer, build_or_load_vocab
 from htr_ocr.utils.metrics import AverageMeter, cer, wer
+from htr_ocr.utils.repro import seed_everything
 
 
 @dataclass
@@ -26,12 +26,6 @@ class TrainResult:
     best_checkpoint: Path
     best_val_cer: float
     best_val_wer: float
-
-
-def seed_everything(seed: int) -> None:
-    random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
 
 
 def _ctc_prepare_targets(tokenizer: CTCTokenizer, texts: list[str]) -> tuple[torch.Tensor, torch.Tensor]:
@@ -155,7 +149,7 @@ def evaluate(
 
 
 def train_crnn_ctc(cfg) -> TrainResult:
-    seed_everything(int(cfg.train.seed))
+    seed_everything(int(cfg.train.seed), deterministic=bool(getattr(cfg.train, "deterministic", True)))
 
     device = torch.device(cfg.train.device if torch.cuda.is_available() else "cpu")
 

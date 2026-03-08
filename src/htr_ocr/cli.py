@@ -23,6 +23,7 @@ from htr_ocr.train.ctc_trainer import evaluate, make_dataloader, train_crnn_ctc
 from htr_ocr.train.vt_trainer import evaluate as vt_evaluate, make_dataloader as vt_make_dataloader, train_htr_vt_ctc
 from htr_ocr.train.vt_infer import infer_one as vt_infer_one, load_checkpoint as vt_load_checkpoint
 from htr_ocr.utils.io import ensure_dir
+from htr_ocr.utils.repro import seed_everything
 from htr_ocr.utils.mlflow_utils import mlflow_run
 
 console = Console()
@@ -172,6 +173,10 @@ class HTRCLI:
 
     def inspect_augmentations(self, image_path: str | None = None, *overrides: str) -> None:
         cfg = load_cfg("inspect_augmentations", overrides=list(overrides))
+        seed_everything(
+            int(getattr(cfg.inspect_aug, "seed", 42)),
+            deterministic=bool(getattr(cfg.inspect_aug, "deterministic", True)),
+        )
 
         processed_dir = Path(cfg.data.processed_dir)
         split_name = str(cfg.loader.split)

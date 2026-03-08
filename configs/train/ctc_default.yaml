@@ -1,4 +1,5 @@
 seed: 42
+deterministic: true
 device: cuda
 
 epochs: 100

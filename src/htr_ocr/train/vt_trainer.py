@@ -19,6 +19,7 @@ from htr_ocr.text.ctc_tokenizer import CTCTokenizer, build_or_load_vocab
 from htr_ocr.text.ctc_decode import ctc_beam_search_batch, ctc_greedy_decode_batch
 from htr_ocr.utils.metrics import cer, wer
 from htr_ocr.utils.io import ensure_dir
+from htr_ocr.utils.repro import seed_everything
 
 
 @dataclass
@@ -142,6 +143,7 @@ def evaluate(model: HTRVTCTC, dl: DataLoader, tokenizer: CTCTokenizer, device: t
 
 
 def train_htr_vt_ctc(cfg) -> TrainResult:
+    seed_everything(int(cfg.train.seed), deterministic=bool(getattr(cfg.train, "deterministic", True)))
     device = torch.device(cfg.train.device if torch.cuda.is_available() else "cpu")
 
     tokenizer = build_or_load_vocab(cfg)

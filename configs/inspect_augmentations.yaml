@@ -14,4 +14,5 @@ inspect_aug:
   n: 19
   cols: 2
   seed: 123
+  deterministic: true
   out_dir: data/augmentations
