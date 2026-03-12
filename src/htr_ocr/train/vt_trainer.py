@@ -220,6 +220,23 @@ def train_htr_vt_ctc(cfg) -> TrainResult:
 
     max_epochs = int(cfg.train.max_epochs)
 
+    scheduler = None
+    scheduler_cfg = getattr(cfg.train, "scheduler", None)
+    if bool(getattr(scheduler_cfg, "enabled", False)):
+        scheduler_name = str(getattr(scheduler_cfg, "name", "cosine")).lower()
+        if scheduler_name == "cosine":
+            t_max = max(1, int(getattr(scheduler_cfg, "t_max", max_epochs)))
+            eta_min = float(getattr(scheduler_cfg, "eta_min", 0.0))
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer,
+                T_max=t_max,
+                eta_min=eta_min,
+            )
+        else:
+            raise ValueError(
+                f"Unknown train.scheduler.name={scheduler_name}"
+            )
+
     for epoch in range(1, max_epochs + 1):
         model.train()
         pbar = tqdm(train_dl, desc=f"train epoch {epoch}", leave=False)
@@ -261,11 +278,16 @@ def train_htr_vt_ctc(cfg) -> TrainResult:
         train_loss = epoch_loss / max(1, seen)
 
         val_metrics = evaluate(model, val_dl, tokenizer, device, decode_cfg=cfg.decode)
+        current_lr = float(optimizer.param_groups[0]["lr"])
 
         mlflow.log_metric("train_loss", train_loss, step=epoch)
         mlflow.log_metric("val_loss", val_metrics["loss"], step=epoch)
         mlflow.log_metric("val_cer", val_metrics["cer"], step=epoch)
         mlflow.log_metric("val_wer", val_metrics["wer"], step=epoch)
+        mlflow.log_metric("lr", current_lr, step=epoch)
+
+        if scheduler is not None:
+            scheduler.step()
 
         improved = val_metrics["cer"] < best_val_cer
         if improved:
