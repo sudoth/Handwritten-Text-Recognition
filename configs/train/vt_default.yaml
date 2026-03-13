@@ -13,9 +13,9 @@ scheduler:
   enabled: true
   name: cosine
   t_max: ${train.max_epochs}
-  eta_min: 1e-6
+  eta_min: 3e-6
 
-max_epochs: 65
+max_epochs: 100
 patience: 100
 
 runs_dir: runs

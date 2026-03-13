@@ -1,3 +1,3 @@
 method: beam
-beam_width: 50
-topk: 25
+beam_width: 20
+topk: 1
