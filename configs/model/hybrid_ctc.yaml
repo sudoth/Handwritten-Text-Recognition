@@ -1,0 +1,13 @@
+name: hybrid_ctc
+
+cnn_out_channels: 256
+
+lstm_hidden: 256
+lstm_layers: 2
+
+transformer_dim: 512
+transformer_layers: 2
+n_heads: 8
+ffn_dim: 1024
+
+dropout: 0.1

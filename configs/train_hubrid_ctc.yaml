@@ -1,0 +1,10 @@
+defaults:
+  - _self_
+  - data: iam
+  - loader: train_ctc
+  - preprocess: default
+  - model: hybrid_ctc
+  - train: hybrid_default
+  - decode: beam
+  - augment: paper
+  - mlflow: default

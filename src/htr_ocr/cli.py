@@ -27,6 +27,8 @@ from htr_ocr.utils.repro import seed_everything
 from htr_ocr.utils.mlflow_utils import mlflow_run
 from htr_ocr.train.trocr_infer import infer_one as trocr_infer_one, load_checkpoint as trocr_load_checkpoint
 from htr_ocr.train.trocr_trainer import evaluate as trocr_evaluate, make_dataloader as trocr_make_dataloader, train_trocr
+from htr_ocr.train.hybrid_infer import infer_one as hybrid_infer_one, load_checkpoint as hybrid_load_checkpoint
+from htr_ocr.train.hybrid_trainer import evaluate as hybrid_evaluate, make_dataloader as hybrid_make_dataloader, train_hybrid_ctc
 
 console = Console()
 
@@ -453,6 +455,74 @@ class HTRCLI:
             length_penalty=float(cfg.generate.length_penalty),
             early_stopping=bool(cfg.generate.early_stopping),
             no_repeat_ngram_size=int(cfg.generate.no_repeat_ngram_size),
+        )
+        console.print(f"{pred}")
+
+    def train_hybrid_ctc(self, *overrides: str) -> None:
+        cfg = load_cfg("train_hybrid_ctc", overrides=list(overrides))
+
+        with mlflow_run("train_hybrid_ctc", cfg):
+            result = train_hybrid_ctc(cfg)
+
+            device = torch.device(cfg.train.device if torch.cuda.is_available() else "cpu")
+            model, tok = hybrid_load_checkpoint(result.best_checkpoint, device)
+            test_dl = hybrid_make_dataloader(cfg, "test")
+            metrics = hybrid_evaluate(model, test_dl, tok, device, decode_cfg=cfg.decode)
+
+            mlflow.log_metric("test_loss", metrics["loss"])
+            mlflow.log_metric("test_cer", metrics["cer"])
+            mlflow.log_metric("test_wer", metrics["wer"])
+
+            console.print(
+                f"Best checkpoint={result.best_checkpoint} "
+                f"val_CER={result.best_val_cer:.4f} val_WER={result.best_val_wer:.4f} "
+                f"test_CER={metrics['cer']:.4f} test_WER={metrics['wer']:.4f}"
+            )
+
+    def eval_hybrid_ctc(self, *overrides: str) -> None:
+        cfg = load_cfg("eval_hybrid_ctc", overrides=list(overrides))
+
+        split_name = str(cfg.eval.split)
+        ckpt_path = Path(cfg.eval.checkpoint_path)
+        if not ckpt_path.exists():
+            raise FileNotFoundError(f"Checkpoint not found at {ckpt_path}")
+
+        with mlflow_run("eval_hybrid_ctc", cfg, extra_tags={"split": split_name}):
+            device = torch.device(cfg.eval.device if torch.cuda.is_available() else "cpu")
+            model, tok = hybrid_load_checkpoint(ckpt_path, device)
+            dl = hybrid_make_dataloader(cfg, split_name)
+            metrics = hybrid_evaluate(model, dl, tok, device, decode_cfg=cfg.decode)
+
+            mlflow.log_metric(f"{split_name}_loss", metrics["loss"])
+            mlflow.log_metric(f"{split_name}_cer", metrics["cer"])
+            mlflow.log_metric(f"{split_name}_wer", metrics["wer"])
+
+            console.print(
+                f"split={split_name}: loss={metrics['loss']:.4f} "
+                f"CER={metrics['cer']:.4f} WER={metrics['wer']:.4f}"
+            )
+
+    def infer_hybrid_ctc(self, *overrides: str) -> None:
+        cfg = load_cfg("infer_hybrid_ctc", overrides=list(overrides))
+
+        ckpt_path = Path(cfg.infer.checkpoint_path)
+        if not ckpt_path.exists():
+            raise FileNotFoundError(f"Checkpoint not found at {ckpt_path}")
+
+        image_path = Path(cfg.infer.image_path)
+        if not image_path.exists():
+            raise FileNotFoundError(f"Image not found at {image_path}")
+
+        pred = hybrid_infer_one(
+            checkpoint_path=ckpt_path,
+            image_path=image_path,
+            height=int(cfg.preprocess.height),
+            keep_aspect=bool(cfg.preprocess.keep_aspect),
+            pad_value=int(cfg.preprocess.pad_value),
+            device_str=str(cfg.infer.device),
+            decode_method=str(getattr(cfg.decode, "method", "beam")),
+            beam_width=int(getattr(cfg.decode, "beam_width", 50)),
+            topk=int(getattr(cfg.decode, "topk", 20)),
         )
         console.print(f"{pred}")
 
