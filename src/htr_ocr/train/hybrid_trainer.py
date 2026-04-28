@@ -17,7 +17,7 @@ from htr_ocr.data.samplers import BucketBatchSampler
 from htr_ocr.data.transforms import make_image_transform
 from htr_ocr.models.hybrid_ctc import HybridCTC
 from htr_ocr.text.ctc_decode import ctc_beam_search_batch, ctc_greedy_decode_batch
-from htr_ocr.text.ctc_tokenizer import CTCTokenizer, build_or_load_vocab_ctc
+from htr_ocr.text.ctc_tokenizer import CTCTokenizer, build_or_load_vocab
 from htr_ocr.utils.io import ensure_dir
 from htr_ocr.utils.metrics import cer, wer
 
@@ -197,7 +197,7 @@ def evaluate(model: HybridCTC, dl: DataLoader, tokenizer: CTCTokenizer, device: 
 
 def train_hybrid_ctc(cfg) -> TrainResult:
     device = torch.device(cfg.train.device if torch.cuda.is_available() else "cpu")
-    tokenizer = build_or_load_vocab_ctc(cfg)
+    tokenizer = build_or_load_vocab(cfg)
 
     model = HybridCTC(
         vocab_size=tokenizer.vocab_size,
