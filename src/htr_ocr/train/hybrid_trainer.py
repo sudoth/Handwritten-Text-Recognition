@@ -113,28 +113,38 @@ def make_dataloader(cfg, split: str) -> DataLoader:
     )
 
 
-def _make_scheduler(optimizer, cfg, total_steps: int):
-    name = str(cfg.train.scheduler.name).lower()
-    if name in {"none", ""}:
+def _make_scheduler(optimizer, cfg, total_steps: int, steps_per_epoch: int):
+    scheduler_cfg = cfg.train.scheduler
+
+    enabled = bool(getattr(scheduler_cfg, "enabled", False))
+    name = str(getattr(scheduler_cfg, "name", "none")).lower()
+
+    if not enabled or name in {"none", ""}:
         return None
 
-    warmup_ratio = float(cfg.train.scheduler.warmup_ratio)
-    warmup_steps = int(total_steps * warmup_ratio)
+    base_lr = float(optimizer.param_groups[0]["lr"])
+    eta_min = float(getattr(scheduler_cfg, "eta_min", 0.0))
+    warmup_ratio = float(getattr(scheduler_cfg, "warmup_ratio", 0.0))
+
+    t_max_epochs = int(getattr(scheduler_cfg, "t_max", int(cfg.train.max_epochs)))
+    t_max_steps = max(1, t_max_epochs * max(1, steps_per_epoch))
+
+    warmup_steps = int(t_max_steps * warmup_ratio)
+    eta_min_factor = eta_min / base_lr if base_lr > 0 else 0.0
 
     def _lr_lambda(current_step: int) -> float:
-        if total_steps <= 0:
-            return 1.0
-        if warmup_steps > 0 and current_step < warmup_steps:
-            return float(current_step) / float(max(1, warmup_steps))
+        if current_step < warmup_steps:
+            return float(current_step + 1) / float(max(1, warmup_steps))
 
-        progress = float(current_step - warmup_steps) / float(max(1, total_steps - warmup_steps))
+        progress = float(current_step - warmup_steps) / float(max(1, t_max_steps - warmup_steps))
         progress = min(max(progress, 0.0), 1.0)
 
         if name == "linear":
-            return max(0.0, 1.0 - progress)
+            return eta_min_factor + (1.0 - eta_min_factor) * (1.0 - progress)
 
         if name == "cosine":
-            return 0.5 * (1.0 + math.cos(math.pi * progress))
+            cosine = 0.5 * (1.0 + math.cos(math.pi * progress))
+            return eta_min_factor + (1.0 - eta_min_factor) * cosine
 
         raise ValueError(f"Unknown scheduler: {name}")
 
@@ -223,8 +233,20 @@ def train_hybrid_ctc(cfg) -> TrainResult:
     )
 
     grad_accum_steps = int(cfg.train.grad_accum_steps)
-    total_steps = int(cfg.train.max_epochs) * max(1, (len(train_dl) + grad_accum_steps - 1) // grad_accum_steps)
-    scheduler = _make_scheduler(optimizer, cfg, total_steps)
+
+    steps_per_epoch = max(
+        1,
+        (len(train_dl) + grad_accum_steps - 1) // grad_accum_steps,
+    )
+
+    total_steps = int(cfg.train.max_epochs) * steps_per_epoch
+
+    scheduler = _make_scheduler(
+        optimizer=optimizer,
+        cfg=cfg,
+        total_steps=total_steps,
+        steps_per_epoch=steps_per_epoch,
+    )
 
     ctc_loss = nn.CTCLoss(blank=tokenizer.blank_id, zero_infinity=True)
 

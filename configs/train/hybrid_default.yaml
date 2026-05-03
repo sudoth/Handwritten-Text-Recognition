@@ -8,8 +8,11 @@ optimizer:
   eps: 1.0e-08
 
 scheduler:
-  name: cosine   # none | linear | cosine
-  warmup_ratio: 0
+  enabled: false
+  name: cosine      # none | linear | cosine
+  t_max: ${train.max_epochs}
+  eta_min: 1e-6
+  warmup_ratio: 0.1
 
 max_epochs: 100
 patience: 100
