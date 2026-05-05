@@ -1,73 +1,19 @@
-import math
 from typing import Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
-def sinusoidal_positional_encoding_1d(length: int, dim: int, device: torch.device) -> torch.Tensor:
-    pe = torch.zeros(length, dim, device=device)
-    position = torch.arange(0, length, device=device, dtype=torch.float32).unsqueeze(1)
-    div_term = torch.exp(torch.arange(0, dim, 2, device=device, dtype=torch.float32) * (-math.log(10000.0) / dim))
-    pe[:, 0::2] = torch.sin(position * div_term)
-    pe[:, 1::2] = torch.cos(position * div_term)
-    return pe.unsqueeze(0)  # [1, T, D]
+from htr_ocr.models.hybrid_ctc import ConvFeatureExtractor, sinusoidal_positional_encoding_1d
 
 
-class ConvFeatureExtractor(nn.Module):
-    """CNN extractor for line images.
+class HybridFusionCTC(nn.Module):
+    """CNN -> BiLSTM -> Transformer Encoder -> Fusion(local, global) -> CTC.
 
-    Width downsample factor = 4
-    Height is reduced and then collapsed by max over height.
+    Отличие от HybridCTC:
+    - HybridCTC использует только выход Transformer Encoder;
+    - HybridFusionCTC объединяет выход BiLSTM и выход Transformer Encoder на каждом timestep.
     """
-
-    def __init__(self, out_channels: int = 256, dropout: float = 0.1) -> None:
-        super().__init__()
-
-        self.features = nn.Sequential(
-            nn.Conv2d(1, 64, kernel_size=3, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True),
-
-            nn.Conv2d(64, 64, kernel_size=3, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True),
-
-            nn.MaxPool2d(kernel_size=2, stride=2),  # /2
-
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(inplace=True),
-
-            nn.Conv2d(128, 128, kernel_size=3, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(inplace=True),
-
-            nn.MaxPool2d(kernel_size=2, stride=2),  # /4
-
-            nn.Conv2d(128, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
-
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
-
-            nn.Dropout2d(p=float(dropout)),
-        )
-
-        self.width_downsample_factor = 4
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.features(x)  # [B, C, H', W']
-        x = x.max(dim=2).values  # [B, C, W']
-        x = x.transpose(1, 2)  # [B, W', C]
-        return x
-
-
-class HybridCTC(nn.Module):
-    """CNN -> BiLSTM -> Transformer Encoder -> CTC"""
 
     def __init__(
         self,
@@ -80,11 +26,18 @@ class HybridCTC(nn.Module):
         n_heads: int = 8,
         ffn_dim: int = 1024,
         dropout: float = 0.1,
+        fusion_type: str = "concat",
     ) -> None:
         super().__init__()
 
         self.vocab_size = int(vocab_size)
         self.transformer_dim = int(transformer_dim)
+        self.fusion_type = str(fusion_type).lower()
+
+        if self.fusion_type not in {"concat", "gated"}:
+            raise ValueError(
+                f"Unknown fusion_type={fusion_type!r}. Expected one of: concat, gated."
+            )
 
         self.cnn = ConvFeatureExtractor(
             out_channels=int(cnn_out_channels),
@@ -120,6 +73,16 @@ class HybridCTC(nn.Module):
             num_layers=int(transformer_layers),
         )
 
+        if self.fusion_type == "concat":
+            self.fusion = nn.Sequential(
+                nn.Linear(int(transformer_dim) * 2, int(transformer_dim)),
+                nn.GELU(),
+                nn.Dropout(float(dropout)),
+            )
+        else:
+            self.gate = nn.Linear(int(transformer_dim) * 2, int(transformer_dim))
+            self.fusion_dropout = nn.Dropout(float(dropout))
+
         self.dropout = nn.Dropout(float(dropout))
         self.head = nn.Linear(int(transformer_dim), self.vocab_size)
 
@@ -137,10 +100,13 @@ class HybridCTC(nn.Module):
         token_lengths: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         feat = self.cnn(x)  # [B, T, C]
+
         feat, _ = self.bilstm(feat)  # [B, T, 2H]
         feat = self.proj(feat)  # [B, T, D]
 
-        bsz, seq_len, dim = feat.shape
+        local_feat = feat
+
+        batch_size, seq_len, dim = feat.shape
 
         pos = sinusoidal_positional_encoding_1d(seq_len, dim, feat.device)
         feat = feat + pos
@@ -150,10 +116,24 @@ class HybridCTC(nn.Module):
         if token_lengths is not None:
             token_lengths = token_lengths.to(device=feat.device, dtype=torch.long)
             token_lengths = torch.clamp(token_lengths, max=seq_len)
-            ar = torch.arange(seq_len, device=feat.device).unsqueeze(0).expand(bsz, seq_len)
-            key_padding_mask = ar >= token_lengths.unsqueeze(1)  # True = padding
+            ar = torch.arange(seq_len, device=feat.device).unsqueeze(0).expand(batch_size, seq_len)
+            key_padding_mask = ar >= token_lengths.unsqueeze(1)
 
-        feat = self.transformer(feat, src_key_padding_mask=key_padding_mask)  # [B, T, D]
+        global_feat = self.transformer(
+            feat,
+            src_key_padding_mask=key_padding_mask,
+        )  # [B, T, D]
+
+        mixed = torch.cat([local_feat, global_feat], dim=-1)  # [B, T, 2D]
+
+        if self.fusion_type == "concat":
+            feat = self.fusion(mixed)  # [B, T, D]
+        else:
+            gate = torch.sigmoid(self.gate(mixed))  # [B, T, D]
+            feat = gate * global_feat + (1.0 - gate) * local_feat
+            feat = self.fusion_dropout(feat)
+
         logits = self.head(feat)  # [B, T, V]
         log_probs = F.log_softmax(logits, dim=-1)
+
         return log_probs.transpose(0, 1)  # [T, B, V]

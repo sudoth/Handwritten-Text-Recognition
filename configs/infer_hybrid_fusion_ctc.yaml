@@ -1,0 +1,10 @@
+defaults:
+  - preprocess: default
+  - decode: greedy
+  - mlflow: local
+  - _self_
+
+infer:
+  device: cuda
+  checkpoint_path: runs/hybrid_fusion_ctc/best.pt
+  image_path: ""

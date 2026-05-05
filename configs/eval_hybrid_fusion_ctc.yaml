@@ -1,0 +1,13 @@
+defaults:
+  - data: iam
+  - loader: eval_ctc
+  - preprocess: default
+  - model: hybrid_fusion_ctc
+  - decode: greedy
+  - mlflow: local
+  - _self_
+
+eval:
+  device: cuda
+  split: test
+  checkpoint_path: runs/hybrid_fusion_ctc/best.pt
