@@ -9,7 +9,7 @@ from torch.nn.utils import clip_grad_norm_
 from tqdm import tqdm
 
 from htr_ocr.models.hybrid_fusion_ctc import HybridFusionCTC
-from htr_ocr.text.ctc_tokenizer import build_or_load_vocab_ctc
+from htr_ocr.text.ctc_tokenizer import build_or_load_vocab
 from htr_ocr.train.hybrid_trainer import (
     _ctc_prepare_targets,
     _make_scheduler,
@@ -41,7 +41,7 @@ def _build_checkpoint_payload(model: HybridFusionCTC, tokenizer, cfg) -> dict:
 
 def train_hybrid_fusion_ctc(cfg) -> TrainResult:
     device = torch.device(cfg.train.device if torch.cuda.is_available() else "cpu")
-    tokenizer = build_or_load_vocab_ctc(cfg)
+    tokenizer = build_or_load_vocab(cfg)
 
     model = HybridFusionCTC(
         vocab_size=tokenizer.vocab_size,
