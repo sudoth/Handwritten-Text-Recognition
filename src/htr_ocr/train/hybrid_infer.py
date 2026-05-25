@@ -11,7 +11,8 @@ from htr_ocr.text.ctc_tokenizer import CTCTokenizer
 
 
 def load_checkpoint(path: Path, device: torch.device) -> Tuple[HybridCTC, CTCTokenizer]:
-    ckpt = torch.load(path, map_location=device)
+    # Keep current checkpoint loading semantics and avoid FutureWarning about upcoming default change.
+    ckpt = torch.load(path, map_location=device, weights_only=False)
 
     if "cfg" in ckpt and "model" in ckpt["cfg"]:
         model_cfg = ckpt["cfg"]["model"]

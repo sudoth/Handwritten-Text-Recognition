@@ -118,6 +118,7 @@ class HybridCTC(nn.Module):
         self.transformer = nn.TransformerEncoder(
             encoder_layer=enc_layer,
             num_layers=int(transformer_layers),
+            enable_nested_tensor=False,
         )
 
         self.dropout = nn.Dropout(float(dropout))
